@@ -1,8 +1,8 @@
 {
   "name": "soilless-ai-assistant",
-  "productName": "无土栽培AI助手",
+  "productName": "智慧AI课堂助手",
   "version": "1.0.0",
-  "description": "无土栽培智能教学助手 - 高中课程比赛项目",
+  "description": "智慧AI课堂助手 - 高中课程比赛项目",
   "main": "src/main/main.js",
   "author": "SmartClass",
   "license": "MIT",
@@ -24,7 +24,7 @@
   },
   "build": {
     "appId": "com.smartclass.soillessai",
-    "productName": "无土栽培AI助手",
+    "productName": "智慧AI课堂助手",
     "directories": {
       "output": "dist"
     },
@@ -53,7 +53,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "无土栽培AI助手",
+      "shortcutName": "智慧AI课堂助手",
       "artifactName": "${productName} Setup.${ext}"
     }
   }

@@ -50,4 +50,20 @@ function buildDeepSeekScript(text, autoSend) {
 })();`;
 }
 
-module.exports = { buildDeepSeekScript };
+module.exports = { buildDeepSeekScript, buildDeepSeekAnswerScript };
+
+// 读取 DeepSeek 页面中最新一条回答的文本（用于悬浮窗流式显示）
+// 只读取回答区域文字，不涉及 Cookie/密码/用户其他数据
+function buildDeepSeekAnswerScript() {
+  return `(() => {
+  try {
+    // DeepSeek 回答区域的 markdown 容器；类名变化时优先改这里
+    let nodes = document.querySelectorAll('.ds-markdown');
+    if (!nodes.length) nodes = document.querySelectorAll('[class*="markdown"]');
+    const node = nodes.length ? nodes[nodes.length - 1] : null;
+    return { ok: true, text: node ? node.innerText : '' };
+  } catch (err) {
+    return { ok: false, message: String(err && err.message) };
+  }
+})();`;
+}

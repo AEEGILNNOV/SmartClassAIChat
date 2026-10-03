@@ -1,4 +1,4 @@
-# 无土栽培智能教学助手
+# 智慧AI课堂助手
 
 一个面向高中课堂的桌面 AI 教学助手：内嵌 DeepSeek 网页版，配合无土栽培专用 Prompt 快捷按钮、分享二维码生成和本地教学记录。无需自建服务器，不依赖 AI 接口密钥。
 
@@ -20,7 +20,7 @@ npm run dist       # 打包 Windows 安装程序
 
 环境要求：Node.js 18+。打包 Windows exe 需要在 Windows 上直接运行，或在 Linux/WSL 上安装 wine（本项目在 WSL2 + 便携版 wine 下打包成功）。
 
-打包产物：`dist/无土栽培AI助手 Setup.exe`（Windows 10/11 双击安装，目标机器无需 Node.js）。
+打包产物：`dist/智慧AI课堂助手 Setup.exe`（Windows 10/11 双击安装，目标机器无需 Node.js）。
 
 ## 使用流程
 

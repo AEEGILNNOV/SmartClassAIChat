@@ -1,7 +1,8 @@
 const { app, BrowserWindow, Tray, Menu, ipcMain, clipboard, dialog, globalShortcut, nativeImage, session, webContents } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { buildDeepSeekScript } = require(path.join(__dirname, '../shared/deepseekScript.js'));
+const { buildDeepSeekScript, buildDeepSeekAnswerScript } = require(path.join(__dirname, '../shared/deepseekScript.js'));
+const { analyzeImage } = require(path.join(__dirname, '../shared/ocrService.js'));
 
 let win = null;
 let tray = null;
@@ -104,10 +105,10 @@ function toggleWindow() {
 function createFloatWindow() {
   if (floatWin && !floatWin.isDestroyed()) return floatWin;
   floatWin = new BrowserWindow({
-    width: 300,
-    height: 168,
-    minWidth: 260,
-    minHeight: 130,
+    width: 320,
+    height: 560,
+    minWidth: 280,
+    minHeight: 260,
     frame: false,          // 无边框
     transparent: true,     // 透明背景，圆形悬浮球
     resizable: true,       // 可调整大小
@@ -130,8 +131,8 @@ function createFloatWindow() {
     floatWin.setBounds({
       x: saved.x,
       y: saved.y,
-      width: Math.max(saved.width || 300, 260),
-      height: Math.max(saved.height || 168, 130)
+      width: Math.max(saved.width || 320, 280),
+      height: Math.max(saved.height || 560, 260)
     });
   }
 
@@ -161,7 +162,7 @@ function toggleFloating() {
 function createTray() {
   const icon = nativeImage.createFromPath(path.join(__dirname, '../../build/tray.png'));
   tray = new Tray(icon);
-  tray.setToolTip('无土栽培AI助手');
+  tray.setToolTip('智慧AI课堂助手');
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: '显示主窗口', click: showWindow },
     { label: '隐藏主窗口', click: () => win && win.hide() },
@@ -213,8 +214,8 @@ function registerIpc() {
 
   ipcMain.handle('qr:save', async (_e, dataURL) => {
     try {
-      // 保存到 桌面/无土栽培AI助手/二维码/，目录不存在则自动创建
-      const dir = path.join(app.getPath('desktop'), '无土栽培AI助手', '二维码');
+      // 保存到 桌面/智慧AI课堂助手/二维码/，目录不存在则自动创建
+      const dir = path.join(app.getPath('desktop'), '智慧AI课堂助手', '二维码');
       fs.mkdirSync(dir, { recursive: true });
       const p = (n) => String(n).padStart(2, '0');
       const d = new Date();
@@ -274,6 +275,26 @@ function registerIpc() {
 
   ipcMain.handle('deepseek:send', (_e, text) => runDeepSeekScript(text, true));
   ipcMain.handle('deepseek:fill', (_e, text) => runDeepSeekScript(text, false));
+
+  // 读取最新回答（悬浮窗流式显示用，上层按文本稳定性判断是否结束）
+  ipcMain.handle('deepseek:poll-answer', () => {
+    const wc = findDeepSeekContents();
+    if (!wc) return { ok: false, reason: 'no-webview' };
+    return wc.executeJavaScript(buildDeepSeekAnswerScript(), true);
+  });
+
+  // 二维码图片复制到剪贴板
+  ipcMain.handle('qr:copy', (_e, dataURL) => {
+    try {
+      clipboard.writeImage(nativeImage.createFromDataURL(String(dataURL)));
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, message: err.message };
+    }
+  });
+
+  // PPT OCR 识别 + 上下文分析（预留接口）
+  ipcMain.handle('ocr:analyze', (_e, payload) => analyzeImage(payload));
   ipcMain.handle('win:minimize', () => { win && win.minimize(); });
   ipcMain.handle('win:maximize', () => {
     if (!win) return;

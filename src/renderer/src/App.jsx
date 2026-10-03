@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { sendToDeepSeek, fillToDeepSeek } from './deepseekAutomation';
+import { toggleVoice } from './voiceInput';
 
 // ---------- 无土栽培 Prompt 模板（默认内容，可在设置页修改） ----------
 const DEFAULT_PROMPTS = [
@@ -81,6 +82,10 @@ pH：
 
 const DEEPSEEK_URL = 'https://chat.deepseek.com';
 
+// 系统提示词：全局人设，发送任何问题时自动拼接在最前面（可在设置页修改）
+const DEFAULT_SYS_PROMPT = `你是一名高中无土栽培课程的教师助手。
+请始终用高中阶段能理解的语言回答，结合无土栽培实际案例，必要时分步骤说明。`;
+
 // 用户的自定义提示词（设置页修改后保存在本机 localStorage）
 function loadCustomPrompts() {
   try {
@@ -103,6 +108,14 @@ export default function App() {
     ...p,
     text: typeof customPrompts[p.title] === 'string' ? customPrompts[p.title] : p.text
   }));
+
+  // 系统提示词（__sys__ 键），发送时自动拼在最前面
+  const sysPrompt = typeof customPrompts.__sys__ === 'string' ? customPrompts.__sys__ : DEFAULT_SYS_PROMPT;
+  const composeText = (p) => (sysPrompt ? sysPrompt + '\n\n' : '') + p.text;
+
+  // 自由提问 + 语音输入
+  const [freeText, setFreeText] = useState('');
+  const [micState, setMicState] = useState('idle'); // idle | listening | error
 
   // 比赛模式：首次启动显示开始页
   const [started, setStarted] = useState(() => localStorage.getItem('competitionStarted') === '1');
@@ -144,8 +157,8 @@ export default function App() {
 
   // ---------- Prompt 复制（同时自动填入 DeepSeek 输入框，不发送） ----------
   const copyPrompt = async (p) => {
-    await window.api.copyPrompt(p.text);
-    const res = await fillToDeepSeek(p.text);
+    await window.api.copyPrompt(composeText(p));
+    const res = await fillToDeepSeek(composeText(p));
     if (res.ok) {
       showToast('已复制并填入 DeepSeek 输入框，按回车即可发送');
       return;
@@ -156,7 +169,7 @@ export default function App() {
   // ---------- 发送到 DeepSeek（填入 + 自动发送） ----------
   const sendPrompt = async (p) => {
     showToast('正在发送到 DeepSeek…');
-    const res = await sendToDeepSeek(p.text);
+    const res = await sendToDeepSeek(composeText(p));
     if (res.ok) {
       showToast('已发送，DeepSeek 正在回答');
     } else if (res.reason === 'filled') {
@@ -169,6 +182,41 @@ export default function App() {
   };
 
   const sendToDeepSeekNow = () => sendPrompt(prompts[selected]);
+
+  // ---------- 自由提问 + 语音输入 ----------
+  const sendFreeQuestion = async () => {
+    const q = freeText.trim();
+    if (!q) {
+      showToast('请先输入问题。');
+      return;
+    }
+    const full = (sysPrompt ? sysPrompt + '\n\n' : '') + q;
+    showToast('正在发送到 DeepSeek…');
+    const res = await sendToDeepSeek(full);
+    if (res.ok) {
+      setFreeText(''); // 发送成功后清空输入框
+      showToast('已发送，DeepSeek 正在回答');
+    } else if (res.reason === 'filled') {
+      showToast('已填入输入框但未自动发送，请按回车发送');
+    } else {
+      await window.api.copyPrompt(full);
+      showToast('自动发送失败，内容已复制，请手动粘贴。');
+    }
+  };
+
+  const voiceToFreeInput = () => {
+    toggleVoice({
+      onResult: (t) => setFreeText(t),
+      onState: (s) => {
+        if (s === 'unsupported' || s.startsWith('error')) {
+          setMicState('error');
+          showToast('当前环境不支持语音识别，可用系统语音输入（Win+H）');
+        } else {
+          setMicState(s);
+        }
+      }
+    });
+  };
 
   // ---------- 设置：编辑提示词 ----------
   const saveSettings = () => {
@@ -203,9 +251,10 @@ export default function App() {
       });
       setQrImg(dataURL);
       setSavedPath('');
+      await window.api.copyQrImage(dataURL); // 自动复制二维码图片到剪贴板
       await window.api.addRecord({ note: shareNote.trim() || '（无备注）', link });
       await refreshRecords();
-      showToast('二维码已生成，记录已保存');
+      showToast('二维码已生成并复制到剪贴板，可直接 Ctrl+V 到 PPT/微信');
     } catch (err) {
       showToast('二维码生成失败：' + err.message);
     }
@@ -244,7 +293,7 @@ export default function App() {
       <div className="start-screen">
         <div className="start-card">
           <div className="start-logo">🌱</div>
-          <h1 className="start-title">无土栽培智能教学助手</h1>
+          <h1 className="start-title">智慧AI课堂助手</h1>
           <p className="start-sub">课堂 AI 教学助手 · 内嵌 DeepSeek · 一键提问 · 分享二维码</p>
           <button className="start-btn" onClick={startCompetition}>开始使用 AI</button>
           <p className="start-tip">点击后将显示桌面悬浮按钮，点击悬浮球 🌱 随时打开助手</p>
@@ -259,7 +308,7 @@ export default function App() {
       <div className="titlebar">
         <div className="titlebar-left">
           <img className="logo" src="./icon.png" alt="" onError={(e) => { e.target.style.display = 'none'; }} />
-          <span className="app-name">🌿 无土栽培AI助手</span>
+          <span className="app-name">🌿 智慧AI课堂助手</span>
         </div>
         <div className="titlebar-btns">
           <button className="tb-btn" title="显示/隐藏桌面悬浮按钮" onClick={async () => { await window.api.toggleFloating(); showToast('悬浮按钮已切换'); }}>🌱</button>
@@ -301,6 +350,24 @@ export default function App() {
                 <button className="action-btn primary" onClick={sendToDeepSeekNow}>🚀 发送到 DeepSeek</button>
                 <button className="action-btn" onClick={() => copyPrompt(prompts[selected])}>📋 复制 Prompt</button>
               </div>
+
+              <div className="free-ask">
+                <label className="field-label">🎤 自由提问（也支持语音输入）</label>
+                <textarea
+                  className="field"
+                  rows={2}
+                  placeholder={micState === 'listening' ? '正在聆听，请说话…' : '输入问题，或点麦克风语音输入'}
+                  value={freeText}
+                  onChange={(e) => setFreeText(e.target.value)}
+                />
+                <div className="free-row">
+                  <button className={micState === 'listening' ? 'mini-btn listening' : 'mini-btn'} onClick={voiceToFreeInput}>
+                    {micState === 'listening' ? '🔴 停止' : '🎤 语音'}
+                  </button>
+                  <button className="action-btn primary compact" onClick={sendFreeQuestion}>🚀 发送</button>
+                </div>
+              </div>
+
               <div className="panel-foot">
                 发送失败时用「复制 Prompt」+ Ctrl+V 粘贴到 DeepSeek 即可。提示词可在「设置」页修改。
               </div>
@@ -309,7 +376,17 @@ export default function App() {
 
           {tab === 'settings' && (
             <div className="panel">
-              <p className="panel-tip">在这里修改每个提示词的内容（例如把说明改成更适合你课堂的版本），保存在本机。</p>
+              <p className="panel-tip">系统提示词会自动拼在每次提问的最前面；专题提示词对应左侧的按钮。设置保存在本机。</p>
+
+              <div className="setting-group-title">🧭 系统提示词（全局人设）</div>
+              <textarea
+                className="field setting-text"
+                rows={4}
+                value={typeof drafts.__sys__ === 'string' ? drafts.__sys__ : DEFAULT_SYS_PROMPT}
+                onChange={(e) => setDrafts({ ...drafts, __sys__: e.target.value })}
+              />
+
+              <div className="setting-group-title">📚 专题提示词</div>
               {prompts.map((p) => (
                 <div key={p.title} className="setting-item">
                   <label className="field-label">{p.icon} {p.title}</label>
@@ -323,7 +400,7 @@ export default function App() {
               ))}
               <div className="big-actions">
                 <button className="action-btn primary" onClick={saveSettings}>💾 保存设置</button>
-                <button className="action-btn" onClick={resetSettings}>↩️ 恢复默认提示词</button>
+                <button className="action-btn" onClick={resetSettings}>↩️ 恢复默认设置</button>
               </div>
             </div>
           )}

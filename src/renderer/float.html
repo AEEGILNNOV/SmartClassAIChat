@@ -58,10 +58,29 @@
         cursor: pointer;
       }
       #hide:hover { background: #ef4444; }
+      /* 回答显示区（流式输出） */
+      #answer {
+        flex: 1;
+        margin: 8px 10px 0;
+        padding: 8px 10px;
+        background: #f0fdf4;
+        border: 1px solid #d1fae5;
+        border-radius: 8px;
+        font-size: 12.5px;
+        line-height: 1.7;
+        color: #1f2937;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+        user-select: text;
+        min-height: 60px;
+      }
+      #answer:empty::before { content: '回答会显示在这里…'; color: #9ca3af; }
       /* 输入区 */
       #input {
-        flex: 1;
-        margin: 8px 10px 4px;
+        flex-shrink: 0;
+        height: 54px;
+        margin: 8px 10px 0;
         padding: 8px 10px;
         border: 1px solid #d1d5db;
         border-radius: 8px;
@@ -77,30 +96,41 @@
       #row {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 4px 10px 10px;
+        gap: 6px;
+        padding: 6px 10px;
       }
+      .btn {
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      #mic {
+        padding: 8px 10px;
+        background: #ecfdf5;
+        border: 1px solid #10b981;
+        color: #059669;
+        font-size: 13px;
+      }
+      #mic:hover { background: #d1fae5; }
+      #mic.listening { background: #fee2e2; border-color: #ef4444; color: #ef4444; animation: pulse 1.2s infinite; }
+      @keyframes pulse { 50% { opacity: 0.6; } }
       #send {
         flex: 1;
         padding: 9px;
-        border: none;
-        border-radius: 8px;
         background: #059669;
         color: #fff;
         font-size: 14px;
         font-weight: 700;
-        cursor: pointer;
       }
       #send:hover { background: #047857; }
       #send:disabled { background: #9ca3af; cursor: default; }
       #open {
-        padding: 9px 12px;
+        padding: 8px 12px;
         border: 1px solid #10b981;
-        border-radius: 8px;
         background: #fff;
         color: #059669;
         font-size: 12px;
-        cursor: pointer;
         white-space: nowrap;
       }
       #open:hover { background: #ecfdf5; }
@@ -116,14 +146,16 @@
   <body>
     <div id="panel">
       <div id="header" title="按住拖动 · 点击叶子打开主窗口">
-        <button id="go" title="打开主窗口">🌱</button>
-        <span id="title">无土栽培AI助手</span>
-        <button id="hide" title="隐藏悬浮面板（主窗口标题栏 🌱 可重新打开）">✕</button>
+        <button id="go" class="btn" title="打开主窗口">🌱</button>
+        <span id="title">智慧AI课堂助手</span>
+        <button id="hide" class="btn" title="隐藏悬浮面板（主窗口标题栏 🌱 可重新打开）">✕</button>
       </div>
+      <div id="answer"></div>
       <textarea id="input" placeholder="输入问题，一键发送给 DeepSeek…"></textarea>
       <div id="row">
-        <button id="send">🚀 一键发送</button>
-        <button id="open" title="打开主窗口使用 Prompt 模板和二维码">主窗口</button>
+        <button id="mic" class="btn" title="语音输入">🎤</button>
+        <button id="send" class="btn">🚀 一键发送</button>
+        <button id="open" class="btn" title="打开主窗口使用 Prompt 模板和二维码">主窗口</button>
       </div>
       <div id="status"></div>
     </div>
@@ -133,7 +165,9 @@
       const header = document.getElementById('header');
       const input = document.getElementById('input');
       const sendBtn = document.getElementById('send');
+      const micBtn = document.getElementById('mic');
       const statusEl = document.getElementById('status');
+      const answerBox = document.getElementById('answer');
       const hideBtn = document.getElementById('hide');
 
       const setStatus = (t) => { statusEl.textContent = t; };
@@ -165,18 +199,90 @@
         if (!dragging) return;
         dragging = false;
         window.api.floatDragEnd();
-        if (!moved) {
-          // 点标题栏空白处 = 打开主窗口
-          window.api.showMainWindow();
-        }
+        if (!moved) window.api.showMainWindow();
       });
 
-      // ---------- 打开主窗口 ----------
       document.getElementById('go').addEventListener('click', () => window.api.showMainWindow());
       document.getElementById('open').addEventListener('click', () => window.api.showMainWindow());
       hideBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         window.api.hideFloating();
+      });
+
+      // ---------- 回答流式显示 ----------
+      // 轮询读取 DeepSeek 页面最新回答；文本连续 3 次不变视为回答完成
+      let pollTimer = null;
+      function startPolling() {
+        stopPolling();
+        let last = '';
+        let stable = 0;
+        let started = false;
+        answerBox.textContent = '';
+        setStatus('等待 DeepSeek 回答…');
+        const tick = async () => {
+          if (pollTimer === null) return;
+          try {
+            const r = await window.api.pollDeepSeekAnswer();
+            if (r && r.ok && r.text && r.text.trim()) {
+              const t = r.text.trim();
+              if (t === last) {
+                stable++;
+              } else {
+                stable = 0;
+                started = true;
+                last = t;
+                answerBox.textContent = t;
+                answerBox.scrollTop = answerBox.scrollHeight;
+                setStatus('正在回答…');
+              }
+              if (started && stable >= 3) {
+                setStatus('✓ 回答完成（完整回答见 DeepSeek 页面）');
+                pollTimer = null;
+                return;
+              }
+            }
+          } catch (e) { /* 忽略单次轮询失败 */ }
+          pollTimer = setTimeout(tick, 600);
+        };
+        pollTimer = setTimeout(tick, 800);
+      }
+      function stopPolling() {
+        if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+      }
+
+      // ---------- 语音输入 ----------
+      let rec = null;
+      let listening = false;
+      micBtn.addEventListener('click', () => {
+        if (listening) { rec && rec.stop(); return; }
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SR) {
+          setStatus('当前环境不支持语音识别，可用系统语音输入（Win+H）');
+          return;
+        }
+        rec = new SR();
+        rec.lang = 'zh-CN';
+        rec.interimResults = true;
+        rec.continuous = false;
+        rec.onresult = (e) => {
+          let t = '';
+          for (const r of e.results) t += r[0].transcript;
+          input.value = t;
+        };
+        rec.onend = () => { listening = false; micBtn.classList.remove('listening'); };
+        rec.onerror = (e) => {
+          listening = false;
+          micBtn.classList.remove('listening');
+          setStatus('语音识别不可用（' + (e.error || '未知') + '），可用系统语音输入（Win+H）');
+        };
+        try {
+          rec.start();
+          listening = true;
+          micBtn.classList.add('listening');
+          setStatus('正在聆听，请说话…');
+        } catch (err) {
+          setStatus('语音启动失败，可用系统语音输入（Win+H）');
+        }
       });
 
       // ---------- 一键发送 ----------
@@ -189,8 +295,9 @@
         try {
           const res = await window.api.sendToDeepSeek(text);
           if (res && res.ok) {
-            setStatus('✓ 已发送，DeepSeek 正在回答');
-            input.value = '';
+            input.value = ''; // 发送成功，输入框文字直接消失
+            setStatus('已发送');
+            startPolling();   // 开始流式显示回答
           } else if (res && res.reason === 'filled') {
             setStatus('已填入输入框，请按回车发送');
           } else {

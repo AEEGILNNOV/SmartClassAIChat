@@ -301,3 +301,40 @@ textarea.field.setting-text {
   background: #059669; color: #fff;
 }
 .action-btn.primary:hover { background: #047857; }
+
+/* ---------- 自由提问 + 语音 ---------- */
+.free-ask {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed #a7f3d0;
+}
+.free-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+.free-row .action-btn.compact {
+  flex: 1;
+  padding: 9px;
+  font-size: 13.5px;
+}
+.mini-btn.listening {
+  background: #fee2e2;
+  border-color: #ef4444;
+  color: #ef4444;
+  animation: mic-pulse 1.2s infinite;
+}
+@keyframes mic-pulse { 50% { opacity: 0.6; } }
+
+/* ---------- 设置分组 ---------- */
+.setting-group-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #065f46;
+  background: #ecfdf5;
+  border-left: 4px solid #10b981;
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin: 12px 0 8px;
+}
