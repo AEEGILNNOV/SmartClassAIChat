@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
-import { sendToDeepSeek } from './deepseekAutomation';
+import { sendToDeepSeek, fillToDeepSeek } from './deepseekAutomation';
 
 // ---------- 无土栽培 Prompt 模板 ----------
 const PROMPTS = [
@@ -125,9 +125,17 @@ export default function App() {
     await window.api.hideWindow();   // 主窗口退到后台，需要时点悬浮球打开
   };
 
-  // ---------- Prompt 复制 ----------
+  // ---------- Prompt 复制（同时自动填入 DeepSeek 输入框，不发送） ----------
   const copyPrompt = async (p) => {
     await window.api.copyPrompt(p.text);
+    const wv = webviewRef.current;
+    if (wv) {
+      const res = await fillToDeepSeek(wv, p.text);
+      if (res.ok) {
+        showToast('已复制并填入 DeepSeek 输入框，按回车即可发送');
+        return;
+      }
+    }
     showToast('Prompt 已复制');
   };
 
