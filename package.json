@@ -1,0 +1,59 @@
+{
+  "name": "soilless-ai-assistant",
+  "productName": "无土栽培AI助手",
+  "version": "1.0.0",
+  "description": "无土栽培智能教学助手 - 高中课程比赛项目",
+  "main": "src/main/main.js",
+  "author": "SmartClass",
+  "license": "MIT",
+  "scripts": {
+    "icon": "node scripts/gen-icon.js",
+    "build:renderer": "vite build",
+    "dev": "npm run build:renderer && electron .",
+    "start": "electron .",
+    "dist": "npm run build:renderer && electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.3",
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3",
+    "qrcode": "^1.5.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "vite": "^5.4.10"
+  },
+  "build": {
+    "appId": "com.smartclass.soillessai",
+    "productName": "无土栽培AI助手",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/main/**/*",
+      "dist-renderer/**/*",
+      "build/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "build/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "无土栽培AI助手",
+      "artifactName": "${productName} Setup.${ext}"
+    }
+  }
+}

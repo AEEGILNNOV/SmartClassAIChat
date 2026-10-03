@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>悬浮按钮</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { background: transparent; overflow: hidden; user-select: none; }
+      #wrap {
+        width: 100vw; height: 100vh;
+        display: flex; align-items: center; justify-content: center;
+      }
+      #ball {
+        width: 88%; height: 88%;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #10b981, #047857);
+        box-shadow: 0 4px 16px rgba(6, 95, 70, 0.45);
+        display: flex; align-items: center; justify-content: center;
+        position: relative;
+        cursor: pointer;
+        transition: transform 0.12s;
+      }
+      #ball:hover { transform: scale(1.06); }
+      #go {
+        width: 100%; height: 100%;
+        background: transparent; border: none;
+        border-radius: 50%;
+        font-size: 34px;
+        cursor: pointer;
+        outline: none;
+        pointer-events: none; /* 点击统一由 #ball 处理 */
+      }
+      /* 隐藏按钮（右上角小叉，悬浮时出现） */
+      #hide {
+        position: absolute;
+        top: 2%; right: 6%;
+        width: 18px; height: 18px;
+        border: none; border-radius: 50%;
+        background: rgba(255, 255, 255, 0.85);
+        color: #065f46; font-size: 11px; line-height: 18px;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.15s;
+      }
+      #ball:hover #hide { opacity: 1; }
+      #hide:hover { background: #ef4444; color: #fff; }
+    </style>
+  </head>
+  <body>
+    <div id="wrap">
+      <div id="ball" title="拖动移动 · 点击打开无土栽培AI助手">
+        <div id="go">🌱</div>
+        <button id="hide" title="隐藏悬浮按钮（可在主窗口标题栏重新打开）">✕</button>
+      </div>
+    </div>
+    <script>
+      // 悬浮球交互：点击（无明显位移）打开主窗口；按住拖动移动位置；小叉隐藏
+      // 不使用 -webkit-app-region（它会吞掉点击事件），改为手动拖动 + IPC 移动窗口
+      const ball = document.getElementById('ball');
+      const hideBtn = document.getElementById('hide');
+
+      let dragging = false;
+      let moved = false;
+      let startX = 0;
+      let startY = 0;
+
+      ball.addEventListener('mousedown', (e) => {
+        if (e.target === hideBtn) return;
+        dragging = true;
+        moved = false;
+        startX = e.screenX;
+        startY = e.screenY;
+        window.api.floatDragStart(e.screenX, e.screenY);
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!dragging) return;
+        if (Math.abs(e.screenX - startX) > 3 || Math.abs(e.screenY - startY) > 3) {
+          moved = true;
+        }
+        window.api.floatDragMove(e.screenX, e.screenY);
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (!dragging) return;
+        dragging = false;
+        window.api.floatDragEnd();
+        if (!moved) {
+          window.api.showMainWindow();
+        }
+      });
+
+      hideBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        window.api.hideFloating();
+      });
+    </script>
+  </body>
+</html>
