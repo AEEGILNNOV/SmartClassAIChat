@@ -1,6 +1,7 @@
-const { app, BrowserWindow, Tray, Menu, ipcMain, clipboard, dialog, globalShortcut, nativeImage, session } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, clipboard, dialog, globalShortcut, nativeImage, session, webContents } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { buildDeepSeekScript } = require(path.join(__dirname, '../shared/deepseekScript.js'));
 
 let win = null;
 let tray = null;
@@ -103,10 +104,10 @@ function toggleWindow() {
 function createFloatWindow() {
   if (floatWin && !floatWin.isDestroyed()) return floatWin;
   floatWin = new BrowserWindow({
-    width: 76,
-    height: 76,
-    minWidth: 48,
-    minHeight: 48,
+    width: 300,
+    height: 168,
+    minWidth: 260,
+    minHeight: 130,
     frame: false,          // 无边框
     transparent: true,     // 透明背景，圆形悬浮球
     resizable: true,       // 可调整大小
@@ -123,14 +124,14 @@ function createFloatWindow() {
   // 置顶级别提高到全屏 PPT 之上
   floatWin.setAlwaysOnTop(true, 'screen-saver');
 
-  // 恢复上次位置
+  // 恢复上次位置（尺寸做下限保护，避免旧的小尺寸挤压面板）
   const saved = loadFloatBounds();
   if (saved && typeof saved.x === 'number' && typeof saved.y === 'number') {
     floatWin.setBounds({
       x: saved.x,
       y: saved.y,
-      width: saved.width || 76,
-      height: saved.height || 76
+      width: Math.max(saved.width || 300, 260),
+      height: Math.max(saved.height || 168, 130)
     });
   }
 
@@ -247,6 +248,32 @@ function registerIpc() {
     floatDragOffset = null;
     scheduleSaveFloatBounds();
   });
+
+  // ---------- DeepSeek 自动填入/发送（主进程统一执行，悬浮窗与主窗口共用） ----------
+  function findDeepSeekContents() {
+    return webContents.getAllWebContents().find(
+      (wc) => !wc.isDestroyed() && (wc.getURL() || '').includes('chat.deepseek.com')
+    );
+  }
+
+  async function runDeepSeekScript(text, autoSend) {
+    const wc = findDeepSeekContents();
+    if (!wc) return { ok: false, reason: 'no-webview' };
+    const start = Date.now();
+    while (wc.isLoading()) {
+      if (Date.now() - start > 15000) return { ok: false, reason: 'loading' };
+      await new Promise((r) => setTimeout(r, 400));
+    }
+    try {
+      const result = await wc.executeJavaScript(buildDeepSeekScript(text, autoSend), true);
+      return result || { ok: false, reason: 'error' };
+    } catch (err) {
+      return { ok: false, reason: 'error', message: err.message };
+    }
+  }
+
+  ipcMain.handle('deepseek:send', (_e, text) => runDeepSeekScript(text, true));
+  ipcMain.handle('deepseek:fill', (_e, text) => runDeepSeekScript(text, false));
   ipcMain.handle('win:minimize', () => { win && win.minimize(); });
   ipcMain.handle('win:maximize', () => {
     if (!win) return;

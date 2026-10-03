@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld('api', {
   floatDragStart: (x, y) => ipcRenderer.send('float:drag-start', { x, y }),
   floatDragMove: (x, y) => ipcRenderer.send('float:drag-move', { x, y }),
   floatDragEnd: () => ipcRenderer.send('float:drag-end'),
+  sendToDeepSeek: (text) => ipcRenderer.invoke('deepseek:send', text),
+  fillToDeepSeek: (text) => ipcRenderer.invoke('deepseek:fill', text),
   minimizeWindow: () => ipcRenderer.invoke('win:minimize'),
   maximizeWindow: () => ipcRenderer.invoke('win:maximize'),
   toggleTop: () => ipcRenderer.invoke('win:toggleTop'),

@@ -2,70 +2,150 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <title>悬浮按钮</title>
+    <title>悬浮助手</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
-      html, body { background: transparent; overflow: hidden; user-select: none; }
-      #wrap {
-        width: 100vw; height: 100vh;
-        display: flex; align-items: center; justify-content: center;
+      html, body {
+        background: transparent;
+        overflow: hidden;
+        user-select: none;
+        font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
       }
-      #ball {
-        width: 88%; height: 88%;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #10b981, #047857);
-        box-shadow: 0 4px 16px rgba(6, 95, 70, 0.45);
-        display: flex; align-items: center; justify-content: center;
-        position: relative;
-        cursor: pointer;
-        transition: transform 0.12s;
+      #panel {
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        background: rgba(255, 255, 255, 0.97);
+        border: 1px solid #a7f3d0;
+        border-radius: 12px;
+        box-shadow: 0 6px 24px rgba(6, 95, 70, 0.3);
+        overflow: hidden;
       }
-      #ball:hover { transform: scale(1.06); }
+      /* 标题栏：拖动区域 */
+      #header {
+        height: 36px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 8px;
+        background: linear-gradient(90deg, #059669, #10b981);
+        cursor: move;
+      }
       #go {
-        width: 100%; height: 100%;
-        background: transparent; border: none;
-        border-radius: 50%;
-        font-size: 34px;
+        border: none;
+        background: transparent;
+        font-size: 17px;
         cursor: pointer;
-        outline: none;
-        pointer-events: none; /* 点击统一由 #ball 处理 */
+        padding: 2px 4px;
+        border-radius: 6px;
       }
-      /* 隐藏按钮（右上角小叉，悬浮时出现） */
+      #go:hover { background: rgba(255,255,255,0.25); }
+      #title {
+        flex: 1;
+        color: #fff;
+        font-size: 12.5px;
+        font-weight: 600;
+        letter-spacing: 1px;
+        white-space: nowrap;
+        overflow: hidden;
+      }
       #hide {
-        position: absolute;
-        top: 2%; right: 6%;
-        width: 18px; height: 18px;
-        border: none; border-radius: 50%;
-        background: rgba(255, 255, 255, 0.85);
-        color: #065f46; font-size: 11px; line-height: 18px;
+        width: 22px; height: 22px;
+        border: none; border-radius: 6px;
+        background: rgba(255,255,255,0.18);
+        color: #fff; font-size: 12px;
         cursor: pointer;
-        opacity: 0;
-        transition: opacity 0.15s;
       }
-      #ball:hover #hide { opacity: 1; }
-      #hide:hover { background: #ef4444; color: #fff; }
+      #hide:hover { background: #ef4444; }
+      /* 输入区 */
+      #input {
+        flex: 1;
+        margin: 8px 10px 4px;
+        padding: 8px 10px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 13px;
+        font-family: inherit;
+        line-height: 1.5;
+        resize: none;
+        outline: none;
+        user-select: text;
+      }
+      #input:focus { border-color: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,0.15); }
+      /* 底部按钮行 */
+      #row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 10px 10px;
+      }
+      #send {
+        flex: 1;
+        padding: 9px;
+        border: none;
+        border-radius: 8px;
+        background: #059669;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      #send:hover { background: #047857; }
+      #send:disabled { background: #9ca3af; cursor: default; }
+      #open {
+        padding: 9px 12px;
+        border: 1px solid #10b981;
+        border-radius: 8px;
+        background: #fff;
+        color: #059669;
+        font-size: 12px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      #open:hover { background: #ecfdf5; }
+      #status {
+        padding: 0 10px 8px;
+        font-size: 11px;
+        color: #6b7280;
+        min-height: 16px;
+        text-align: center;
+      }
     </style>
   </head>
   <body>
-    <div id="wrap">
-      <div id="ball" title="拖动移动 · 点击打开无土栽培AI助手">
-        <div id="go">🌱</div>
-        <button id="hide" title="隐藏悬浮按钮（可在主窗口标题栏重新打开）">✕</button>
+    <div id="panel">
+      <div id="header" title="按住拖动 · 点击叶子打开主窗口">
+        <button id="go" title="打开主窗口">🌱</button>
+        <span id="title">无土栽培AI助手</span>
+        <button id="hide" title="隐藏悬浮面板（主窗口标题栏 🌱 可重新打开）">✕</button>
       </div>
+      <textarea id="input" placeholder="输入问题，一键发送给 DeepSeek…"></textarea>
+      <div id="row">
+        <button id="send">🚀 一键发送</button>
+        <button id="open" title="打开主窗口使用 Prompt 模板和二维码">主窗口</button>
+      </div>
+      <div id="status"></div>
     </div>
+
     <script>
-      // 悬浮球交互：点击（无明显位移）打开主窗口；按住拖动移动位置；小叉隐藏
-      // 不使用 -webkit-app-region（它会吞掉点击事件），改为手动拖动 + IPC 移动窗口
-      const ball = document.getElementById('ball');
+      // 不使用 -webkit-app-region（它会吞掉点击事件），手动拖动 + IPC 移动窗口
+      const header = document.getElementById('header');
+      const input = document.getElementById('input');
+      const sendBtn = document.getElementById('send');
+      const statusEl = document.getElementById('status');
       const hideBtn = document.getElementById('hide');
 
+      const setStatus = (t) => { statusEl.textContent = t; };
+
+      // ---------- 拖动（标题栏） ----------
       let dragging = false;
       let moved = false;
       let startX = 0;
       let startY = 0;
 
-      ball.addEventListener('mousedown', (e) => {
-        if (e.target === hideBtn) return;
+      header.addEventListener('mousedown', (e) => {
+        if (e.target === hideBtn || e.target === document.getElementById('go')) return;
         dragging = true;
         moved = false;
         startX = e.screenX;
@@ -86,13 +166,49 @@
         dragging = false;
         window.api.floatDragEnd();
         if (!moved) {
+          // 点标题栏空白处 = 打开主窗口
           window.api.showMainWindow();
         }
       });
 
+      // ---------- 打开主窗口 ----------
+      document.getElementById('go').addEventListener('click', () => window.api.showMainWindow());
+      document.getElementById('open').addEventListener('click', () => window.api.showMainWindow());
       hideBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         window.api.hideFloating();
+      });
+
+      // ---------- 一键发送 ----------
+      sendBtn.addEventListener('click', async () => {
+        const text = input.value.trim();
+        if (!text) { setStatus('请先输入问题'); return; }
+        sendBtn.disabled = true;
+        setStatus('发送中…');
+        window.api.showMainWindow(); // 让老师看到 DeepSeek 的回答
+        try {
+          const res = await window.api.sendToDeepSeek(text);
+          if (res && res.ok) {
+            setStatus('✓ 已发送，DeepSeek 正在回答');
+            input.value = '';
+          } else if (res && res.reason === 'filled') {
+            setStatus('已填入输入框，请按回车发送');
+          } else {
+            await window.api.copyPrompt(text); // 兜底：复制到剪贴板手动粘贴
+            setStatus('自动发送失败，已复制，请在主窗口 Ctrl+V 粘贴');
+          }
+        } catch (err) {
+          setStatus('发送出错：' + (err && err.message ? err.message : '未知错误'));
+        }
+        sendBtn.disabled = false;
+      });
+
+      // Ctrl+Enter 快捷发送
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+          e.preventDefault();
+          sendBtn.click();
+        }
       });
     </script>
   </body>

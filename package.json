@@ -30,6 +30,7 @@
     },
     "files": [
       "src/main/**/*",
+      "src/shared/**/*",
       "dist-renderer/**/*",
       "build/**/*",
       "package.json"

@@ -246,22 +246,38 @@ webview {
 
 /* ---------- Prompt 选择 + 大按钮 ---------- */
 .prompt-item { position: relative; margin-bottom: 10px; }
-.prompt-item .prompt-btn { margin-bottom: 0; padding-right: 64px; }
+.prompt-item .prompt-btn { margin-bottom: 0; padding-right: 108px; }
 .prompt-item.selected .prompt-btn {
   background: #059669; color: #fff; border-color: #059669;
   box-shadow: 0 3px 10px rgba(5, 150, 105, 0.35);
 }
-.copy-chip {
+.chips {
   position: absolute;
   right: 8px; top: 50%;
   transform: translateY(-50%);
+  display: flex;
+  gap: 5px;
+}
+.copy-chip {
   font-size: 11px; padding: 4px 10px;
   border: none; border-radius: 999px;
   background: #a7f3d0; color: #065f46;
   cursor: pointer;
 }
 .copy-chip:hover { background: #6ee7b7; }
+.copy-chip.send { background: #059669; color: #fff; }
+.copy-chip.send:hover { background: #047857; }
 .prompt-item.selected .copy-chip { background: rgba(255,255,255,0.3); color: #fff; }
+.prompt-item.selected .copy-chip.send { background: #fff; color: #059669; }
+
+/* ---------- 设置页 ---------- */
+.setting-item { margin-bottom: 12px; }
+textarea.field.setting-text {
+  font-family: inherit;
+  line-height: 1.6;
+  resize: vertical;
+  user-select: text;
+}
 
 .big-actions {
   margin-top: 16px;

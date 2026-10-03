@@ -2,8 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { sendToDeepSeek, fillToDeepSeek } from './deepseekAutomation';
 
-// ---------- 无土栽培 Prompt 模板 ----------
-const PROMPTS = [
+// ---------- 无土栽培 Prompt 模板（默认内容，可在设置页修改） ----------
+const DEFAULT_PROMPTS = [
   {
     icon: '🧪',
     title: '营养液管理',
@@ -81,11 +81,28 @@ pH：
 
 const DEEPSEEK_URL = 'https://chat.deepseek.com';
 
+// 用户的自定义提示词（设置页修改后保存在本机 localStorage）
+function loadCustomPrompts() {
+  try {
+    return JSON.parse(localStorage.getItem('customPrompts') || '{}');
+  } catch {
+    return {};
+  }
+}
+
 export default function App() {
   const [tab, setTab] = useState('prompts');
   const [topActive, setTopActive] = useState(true);
   const [toast, setToast] = useState('');
   const [selected, setSelected] = useState(0);
+  const [customPrompts, setCustomPrompts] = useState(loadCustomPrompts);
+  const [drafts, setDrafts] = useState(customPrompts); // 设置页的编辑草稿
+
+  // 合并默认模板与用户自定义内容
+  const prompts = DEFAULT_PROMPTS.map((p) => ({
+    ...p,
+    text: typeof customPrompts[p.title] === 'string' ? customPrompts[p.title] : p.text
+  }));
 
   // 比赛模式：首次启动显示开始页
   const [started, setStarted] = useState(() => localStorage.getItem('competitionStarted') === '1');
@@ -128,27 +145,18 @@ export default function App() {
   // ---------- Prompt 复制（同时自动填入 DeepSeek 输入框，不发送） ----------
   const copyPrompt = async (p) => {
     await window.api.copyPrompt(p.text);
-    const wv = webviewRef.current;
-    if (wv) {
-      const res = await fillToDeepSeek(wv, p.text);
-      if (res.ok) {
-        showToast('已复制并填入 DeepSeek 输入框，按回车即可发送');
-        return;
-      }
+    const res = await fillToDeepSeek(p.text);
+    if (res.ok) {
+      showToast('已复制并填入 DeepSeek 输入框，按回车即可发送');
+      return;
     }
     showToast('Prompt 已复制');
   };
 
-  // ---------- 发送到 DeepSeek ----------
-  const sendToDeepSeekNow = async () => {
-    const p = PROMPTS[selected];
-    const wv = webviewRef.current;
-    if (!wv) {
-      showToast('请先打开 DeepSeek。');
-      return;
-    }
+  // ---------- 发送到 DeepSeek（填入 + 自动发送） ----------
+  const sendPrompt = async (p) => {
     showToast('正在发送到 DeepSeek…');
-    const res = await sendToDeepSeek(wv, p.text);
+    const res = await sendToDeepSeek(p.text);
     if (res.ok) {
       showToast('已发送，DeepSeek 正在回答');
     } else if (res.reason === 'filled') {
@@ -158,6 +166,22 @@ export default function App() {
     } else {
       showToast('自动填写失败，请点击复制 Prompt 后手动粘贴。');
     }
+  };
+
+  const sendToDeepSeekNow = () => sendPrompt(prompts[selected]);
+
+  // ---------- 设置：编辑提示词 ----------
+  const saveSettings = () => {
+    localStorage.setItem('customPrompts', JSON.stringify(drafts));
+    setCustomPrompts(drafts);
+    showToast('提示词设置已保存');
+  };
+
+  const resetSettings = () => {
+    localStorage.removeItem('customPrompts');
+    setDrafts({});
+    setCustomPrompts({});
+    showToast('已恢复默认提示词');
   };
 
   // ---------- 分享二维码 ----------
@@ -254,27 +278,52 @@ export default function App() {
             <button className={tab === 'prompts' ? 'tab active' : 'tab'} onClick={() => setTab('prompts')}>💡 Prompt</button>
             <button className={tab === 'share' ? 'tab active' : 'tab'} onClick={() => setTab('share')}>🔗 二维码</button>
             <button className={tab === 'records' ? 'tab active' : 'tab'} onClick={() => setTab('records')}>📚 记录</button>
+            <button className={tab === 'settings' ? 'tab active' : 'tab'} onClick={() => setTab('settings')}>⚙️ 设置</button>
           </nav>
 
           {tab === 'prompts' && (
             <div className="panel">
-              <p className="panel-tip">先点击选择一个 Prompt（可编辑【】中的内容），再点下方大按钮。</p>
-              {PROMPTS.map((p, i) => (
+              <p className="panel-tip">先点击选择一个 Prompt，再点下方大按钮；每个 Prompt 右侧有「复制」「发送」快捷按钮。</p>
+              {prompts.map((p, i) => (
                 <div key={p.title} className={i === selected ? 'prompt-item selected' : 'prompt-item'}>
                   <button className="prompt-btn" onClick={() => setSelected(i)}>
                     <span className="p-icon">{p.icon}</span>
                     <span className="p-title">{p.title}</span>
                   </button>
-                  <button className="copy-chip" title="直接复制此 Prompt" onClick={() => copyPrompt(p)}>复制</button>
+                  <span className="chips">
+                    <button className="copy-chip" title="复制并填入输入框（不发送）" onClick={() => copyPrompt(p)}>复制</button>
+                    <button className="copy-chip send" title="填入并自动发送" onClick={() => sendPrompt(p)}>发送</button>
+                  </span>
                 </div>
               ))}
 
               <div className="big-actions">
                 <button className="action-btn primary" onClick={sendToDeepSeekNow}>🚀 发送到 DeepSeek</button>
-                <button className="action-btn" onClick={() => copyPrompt(PROMPTS[selected])}>📋 复制 Prompt</button>
+                <button className="action-btn" onClick={() => copyPrompt(prompts[selected])}>📋 复制 Prompt</button>
               </div>
               <div className="panel-foot">
-                发送失败时用「复制 Prompt」+ Ctrl+V 粘贴到 DeepSeek 即可。
+                发送失败时用「复制 Prompt」+ Ctrl+V 粘贴到 DeepSeek 即可。提示词可在「设置」页修改。
+              </div>
+            </div>
+          )}
+
+          {tab === 'settings' && (
+            <div className="panel">
+              <p className="panel-tip">在这里修改每个提示词的内容（例如把说明改成更适合你课堂的版本），保存在本机。</p>
+              {prompts.map((p) => (
+                <div key={p.title} className="setting-item">
+                  <label className="field-label">{p.icon} {p.title}</label>
+                  <textarea
+                    className="field setting-text"
+                    rows={5}
+                    value={typeof drafts[p.title] === 'string' ? drafts[p.title] : p.text}
+                    onChange={(e) => setDrafts({ ...drafts, [p.title]: e.target.value })}
+                  />
+                </div>
+              ))}
+              <div className="big-actions">
+                <button className="action-btn primary" onClick={saveSettings}>💾 保存设置</button>
+                <button className="action-btn" onClick={resetSettings}>↩️ 恢复默认提示词</button>
               </div>
             </div>
           )}
