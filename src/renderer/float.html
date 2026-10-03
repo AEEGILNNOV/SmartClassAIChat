@@ -236,7 +236,7 @@
                 setStatus('正在回答…');
               }
               if (started && stable >= 3) {
-                setStatus('✓ 回答完成（完整回答见 DeepSeek 页面）');
+                setStatus('✓ 回答完成');
                 pollTimer = null;
                 return;
               }
@@ -291,7 +291,6 @@
         if (!text) { setStatus('请先输入问题'); return; }
         sendBtn.disabled = true;
         setStatus('发送中…');
-        window.api.showMainWindow(); // 让老师看到 DeepSeek 的回答
         try {
           const res = await window.api.sendToDeepSeek(text);
           if (res && res.ok) {

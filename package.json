@@ -25,6 +25,7 @@
   "build": {
     "appId": "com.smartclass.soillessai",
     "productName": "智慧AI课堂助手",
+    "compression": "store",
     "directories": {
       "output": "dist"
     },
